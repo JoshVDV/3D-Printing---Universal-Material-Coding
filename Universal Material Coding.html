@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>UMC Encoder / Decoder</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+    margin:0;
+    font-family:Inter,Segoe UI,Arial,sans-serif;
+    background:linear-gradient(135deg,#0f172a,#111827);
+    color:#e5e7eb;
+    min-height:100vh;
+}
+header{
+    padding:24px;
+    text-align:center;
+    font-size:28px;
+    font-weight:700;
+    background:rgba(255,255,255,.05);
+    backdrop-filter:blur(12px);
+    border-bottom:1px solid rgba(255,255,255,.08);
+}
+.container{
+    max-width:1200px;
+    margin:auto;
+    padding:24px;
+}
+.tabs{
+    display:flex;
+    gap:12px;
+    margin-bottom:20px;
+}
+button{
+    border:none;
+    border-radius:12px;
+    padding:12px 18px;
+    cursor:pointer;
+    transition:.2s;
+    background:#1f2937;
+    color:white;
+    font-weight:600;
+}
+button:hover{transform:translateY(-2px)}
+button.active{
+    background:linear-gradient(135deg,#3b82f6,#6366f1);
+}
+.card{
+    background:rgba(255,255,255,.05);
+    backdrop-filter:blur(16px);
+    border:1px solid rgba(255,255,255,.08);
+    border-radius:20px;
+    padding:24px;
+    margin-bottom:20px;
+    box-shadow:0 10px 30px rgba(0,0,0,.25);
+}
+h3,h4{margin-top:0}
+label{
+    display:block;
+    margin-bottom:6px;
+    color:#cbd5e1;
+    font-size:.9rem;
+}
+input,textarea,select{
+    width:100%;
+    padding:12px;
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,.1);
+    background:#0f172a;
+    color:white;
+    margin-bottom:14px;
+}
+input:focus,textarea:focus{
+    outline:none;
+    border-color:#60a5fa;
+}
+.row{
+    display:flex;
+    gap:16px;
+}
+.row>div{flex:1}
+.btnrow{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+}
+#output,#decoded{
+    background:#020617;
+    border-radius:12px;
+}
+.hero{
+    margin-bottom:20px;
+    padding:24px;
+    border-radius:20px;
+    background:linear-gradient(135deg,#2563eb,#7c3aed);
+}
+.hero p{margin:8px 0 0 0;opacity:.9}
+</style>
+
+</head>
+<body>
+
+<header>UMC (Universal Material Coding) NFC System</header>
+
+<div class="container"><div class="hero"><h2>📡 UMC NFC Studio</h2><p>Encode • Store • Decode material information directly on NFC tags.</p></div>
+
+<div class="tabs">
+    <button class="active" onclick="showTab('encode')">Encoder</button>
+    <button onclick="showTab('decode')">Decoder</button>
+</div>
+
+<!-- ENCODER -->
+<div id="encode" class="card">
+    <h3>Encode UMC</h3>
+
+    <label>Manufacturer</label>
+    <input id="manufacturer" placeholder="Example: Polymaker"/>
+
+    <label>Material</label>
+    <input id="material" placeholder="Example: PLA"/>
+
+    <label>Color (Hex)</label>
+    <input id="color" type="color" value="#ff6600"/>
+
+    <label>Net Weight (g)</label>
+    <input id="weight" type="number" value="1000"/>
+
+    <label>Production Date</label>
+    <input id="date" type="date"/>
+
+    <label>Diameter (mm)</label>
+    <input id="diameter" type="number" step="0.01"/>
+
+    <label>Density (kg/m³)</label>
+    <input id="density" type="number" step="0.01"/>
+
+    <div class="row">
+        <div>
+            <label>Nozzle Min (°C)</label>
+            <input id="nmin" type="number"/>
+        </div>
+        <div>
+            <label>Nozzle Max (°C)</label>
+            <input id="nmax" type="number"/>
+        </div>
+    </div>
+
+    <div class="row">
+        <div>
+            <label>Bed Min (°C)</label>
+            <input id="bmin" type="number"/>
+        </div>
+        <div>
+            <label>Bed Max (°C)</label>
+            <input id="bmax" type="number"/>
+        </div>
+    </div>
+
+    <label>Recycled % (By weight)</label>
+    <input id="recycled" type="number"/>
+
+    <label>Batch Number</label>
+    <input id="batch"/>
+
+    <div class="btnrow">
+        <button onclick="encodeUMC()">Encode</button>
+        <button onclick="copyOutput()">Copy JSON</button>
+        <button onclick="downloadJSON()">Download</button>
+        <button onclick="writeNFC()">Write NFC</button>
+    </div>
+
+    <h4>Output</h4>
+    <textarea id="output" rows="8"></textarea>
+</div>
+
+<!-- DECODER -->
+<div id="decode" class="card" style="display:none;">
+    <h3>Decode UMC</h3>
+
+    <label>Paste NFC / JSON Payload</label>
+    <textarea id="input" rows="8"></textarea>
+
+    <div class="btnrow">
+        <button onclick="decodeUMC()">Decode</button>
+        <button onclick="readNFC()">Read NFC</button>
+    </div>
+
+    <h4>Decoded Result</h4>
+    <pre id="decoded"></pre>
+</div>
+
+</div>
+
+<script>
+function showTab(tab){
+    document.getElementById("encode").style.display = tab==="encode" ? "block":"none";
+    document.getElementById("decode").style.display = tab==="decode" ? "block":"none";
+}
+
+function encodeUMC(){
+    const data = {
+        v: 1,
+        m: document.getElementById("manufacturer").value,
+        t: document.getElementById("material").value,
+        c: document.getElementById("color").value,
+        w: Number(document.getElementById("weight").value),
+        d: document.getElementById("date").value,
+        dia: Number(document.getElementById("diameter").value),
+        den: Number(document.getElementById("density").value),
+        n: [
+            Number(document.getElementById("nmin").value),
+            Number(document.getElementById("nmax").value)
+        ],
+        b: [
+            Number(document.getElementById("bmin").value),
+            Number(document.getElementById("bmax").value)
+        ],
+        r: Number(document.getElementById("recycled").value),
+        bn: Number(document.getElementById("batch").value)
+    };
+
+    const json = JSON.stringify(data);
+    document.getElementById("output").value = json;
+}
+
+function decodeUMC(){
+    try {
+        const raw = document.getElementById("input").value.trim();
+        const json = raw.startsWith("UMC:") ? raw.slice(4) : raw;
+        const obj = JSON.parse(json);
+        document.getElementById("decoded").textContent =
+            JSON.stringify(obj, null, 2);
+    } catch(e){
+        document.getElementById("decoded").textContent = "Invalid UMC data";
+    }
+}
+
+function copyOutput(){
+    const text = document.getElementById("output");
+    navigator.clipboard.writeText(text.value);
+}
+
+function downloadJSON(){
+    const blob = new Blob([document.getElementById("output").value], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "umc.json";
+    a.click();
+}
+
+async function writeNFC(){
+    if (!("NDEFReader" in window)) {
+        alert("Web NFC not supported (use Android Chrome)");
+        return;
+    }
+
+    try {
+        const ndef = new NDEFReader();
+        await ndef.write("UMC:" + document.getElementById("output").value);
+        alert("NFC written successfully");
+    } catch (e) {
+        alert("NFC write failed: " + e);
+    }
+}
+
+async function readNFC(){
+    if (!("NDEFReader" in window)) {
+        alert("Web NFC not supported");
+        return;
+    }
+
+    try {
+        const ndef = new NDEFReader();
+        await ndef.scan();
+
+        ndef.onreading = event => {
+            for (const record of event.message.records) {
+                const text = new TextDecoder().decode(record.data);
+                document.getElementById("input").value = text;
+                decodeUMC();
+            }
+        };
+    } catch (e) {
+        alert("NFC read failed: " + e);
+    }
+}
+</script>
+
+</body>
+</html>
